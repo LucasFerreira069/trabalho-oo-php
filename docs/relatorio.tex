@@ -1,0 +1,491 @@
+%% Relatório: Trabalho individual de Programação Web I
+%% Compilar com pdflatex (Overleaf ou local). Imagem necessária: diagrama.png
+%% Os trechos em vermelho entre colchetes são para VOCÊ preencher.
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,top=3cm,left=3cm,right=2cm,bottom=2cm]{geometry}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\setstretch{1.05}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue}
+
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{gray!8},
+  frame=single,
+  rulecolor=\color{gray!40},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  literate=
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {â}{{\^a}}1 {ê}{{\^e}}1 {ô}{{\^o}}1 {ã}{{\~a}}1 {õ}{{\~o}}1
+    {ç}{{\c{c}}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {à}{{\`a}}1
+}
+
+\newcommand{\nomesistema}{[Iron Force]}
+\newcommand{\pendente}[1]{{\color{red}[#1]}}
+
+\begin{document}
+
+%% ---------- Capa ----------
+\begin{titlepage}
+  \centering
+  {\large INSTITUTO FEDERAL DE EDUCAÇÃO, CIÊNCIA E TECNOLOGIA DO CEARÁ\\
+  CAMPUS BOA VIAGEM\\
+  TECNOLOGIA EM ANÁLISE E DESENVOLVIMENTO DE SISTEMAS\par}
+  \vspace{3cm}
+  {\large Lucas Ferreira da Silva Filho\par}
+  \vspace{3cm}
+  {\Large\bfseries \nomesistema\par}
+  \vspace{0.5cm}
+  {\large Sistema web orientado a objetos em PHP\par}
+  \vfill
+  {\large Relatório do trabalho individual da disciplina Programação Web I\\
+  Professor: Prof. Dr. Renato William Rodrigues de Souza\par}
+  \vspace{2cm}
+  {\large Boa Viagem, CE\\2026\par}
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+%% =====================================================================
+\section{Introdução}
+
+O tema escolhido foi o número 07, \textbf{Academia}. O sistema, chamado IronForce, serve ao gestor ou recepcionista de uma academia pequena, que costuma controlar matrículas, planos e treinos em papel ou em planilha. Esse controle manual gera problemas conhecidos: erro no cálculo da mensalidade, aluno cadastrado duas vezes e treinos que se chocam na mesma semana.
+
+O sistema resolve isso reunindo os dados em um único lugar e aplicando as regras de negócio automaticamente: ele calcula o valor de cada plano, recusa dados inválidos com uma mensagem clara e mostra, para cada aluno, os treinos da semana e o total de minutos.
+
+Ele foi feito em PHP, todo organizado em classes, com uma camada web simples (páginas, formulários e rota JSON) e persistência em arquivo JSON.
+
+O relatório está organizado assim: a Seção~2 traz os requisitos e as regras de negócio; a Seção~3, a modelagem; a Seção~4, a implementação de cada requisito de orientação a objetos; a Seção~5, a camada web; a Seção~6, os testes; a Seção~7, as ferramentas; a Seção~8, o uso de LLM; e a Seção~9, as dificuldades, os aprendizados e a conclusão.
+
+%% =====================================================================
+\section{Requisitos}
+
+\subsection{Funcionalidades}
+
+\begin{itemize}
+  \item \textbf{Início:} total de alunos matriculados e receita mensal prevista.
+  \item \textbf{Alunos:} lista com matrícula, plano, mensalidade, quantidade de treinos e minutos de treino por semana.
+  \item \textbf{Detalhe do aluno:} dados do aluno, total do contrato, treinos da semana e formulário para adicionar um treino.
+  \item \textbf{Novo aluno:} formulário POST que matricula um aluno em um dos três planos.
+  \item \textbf{Planos:} comparação dos planos mensal, trimestral e anual, mostrando duração, mensalidade, taxa de matrícula e total.
+  \item \textbf{Rota JSON:} as páginas de início, alunos, aluno e planos também saem em JSON, acrescentando \texttt{\&formato=json} à URL.
+  \item \textbf{Página 404:} para página ou aluno inexistente, em HTML ou em JSON.
+  \item \textbf{Persistência (bônus):} os alunos ficam salvos em \texttt{data/alunos.json} e continuam lá na próxima requisição.
+\end{itemize}
+
+\subsection{Regras de negócio}
+
+Todas as regras abaixo são recusadas com \texttt{throw new Exception(...)} e tratadas com \texttt{try/catch}.
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}cXX@{}}
+  \toprule
+  \textbf{Nº} & \textbf{Regra} & \textbf{Onde está (classe e método)} \\
+  \midrule
+  1 & O valor base do plano deve ser maior que zero & \texttt{Plano::\_\_construct()} \\
+  2 & O tipo de plano deve ser mensal, trimestral ou anual & \texttt{Plano::criarPorTipo()} \\
+  3 & O nome do aluno deve ter pelo menos 3 caracteres & \texttt{Aluno::\_\_construct()} \\
+  4 & O aluno deve ter de 16 a 100 anos & \texttt{Aluno::\_\_construct()} \\
+  5 & A duração do treino deve ficar entre 10 e 180 minutos & \texttt{Treino::setDuracaoMinutos()} \\
+  6 & O dia da semana do treino deve ser válido & \texttt{Treino::\_\_construct()} \\
+  7 & O grupo muscular do treino é obrigatório & \texttt{Treino::\_\_construct()} \\
+  8 & O aluno só pode ter um treino por dia da semana & \texttt{Aluno::adicionarTreino()} \\
+  9 & O aluno pode ter no máximo 6 treinos & \texttt{Aluno::adicionarTreino()} \\
+  10 & Não pode haver dois alunos com o mesmo nome & \texttt{RepositorioAlunos::adicionar()} \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+%% =====================================================================
+\section{Modelagem}
+
+A Figura~\ref{fig:diagrama} mostra o diagrama de classes, escrito em Mermaid no arquivo \texttt{docs/modelagem.md}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth,height=0.5\textheight,keepaspectratio]{diagrama.png}
+  \caption{Diagrama de classes do sistema}
+  \label{fig:diagrama}
+\end{figure}
+
+\subsection{Herança}
+
+\texttt{Plano} é a classe mãe, e \texttt{PlanoMensal}, \texttt{PlanoTrimestral} e \texttt{PlanoAnual} são as filhas. A relação ``é um'' vale para as três: todo plano mensal, trimestral ou anual \emph{é um} plano, e todos têm nome, valor base, mensalidade e total do contrato. O que muda entre eles é a regra de cálculo, por isso a classe mãe guarda o que é comum e cada filha sobrescreve só o que difere:
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lXXX@{}}
+  \toprule
+  \textbf{Método sobrescrito} & \textbf{Mensal} & \textbf{Trimestral} & \textbf{Anual} \\
+  \midrule
+  \texttt{getDuracaoMeses()} & 1 (herdado) & 3 & 12 \\
+  \texttt{calcularMensalidade()} & valor base (herdado) & 10\% de desconto & 20\% de desconto \\
+  \texttt{getTaxaMatricula()} & R\$ 50 (herdado) & R\$ 25 & R\$ 0 \\
+  \texttt{getTipo()} e \texttt{descricao()} & sobrescritos & sobrescritos & sobrescritos \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+Assim o método \texttt{calcularTotal()} é escrito uma única vez na classe mãe e funciona para todas as filhas.
+
+\subsection{Composição}
+
+A classe \texttt{Aluno} guarda uma lista de objetos \texttt{Treino}. A relação é ``tem um'': o aluno \emph{tem} treinos, e um treino só faz sentido como parte da rotina de um aluno, por isso é composição. A classe \texttt{Aluno} também se associa a um \texttt{Plano}, mas aqui é uma associação simples, porque o plano existe sem o aluno (a página de planos mostra os planos sem nenhum aluno). Por fim, \texttt{RepositorioAlunos} isola a persistência em arquivo: as outras classes não sabem que o arquivo existe.
+
+%% =====================================================================
+\section{Implementação}
+
+\subsection{Encapsulamento e construtores (OO1 e OO4)}
+
+Todos os arquivos começam com \texttt{declare(strict\_types=1)}. Os atributos são \texttt{private} e tipados, o construtor valida os dados e a alteração de um valor passa por um setter com validação:
+
+\begin{lstlisting}
+class Treino
+{
+    private string $nome;
+    private string $diaSemana;
+    private int $duracaoMinutos;
+    private string $grupoMuscular;
+
+    public function setDuracaoMinutos(int $duracaoMinutos): void
+    {
+        if ($duracaoMinutos < 10 || $duracaoMinutos > 180) {
+            throw new Exception('A duração do treino deve ficar entre 10 e 180 minutos.');
+        }
+        $this->duracaoMinutos = $duracaoMinutos;
+    }
+}
+\end{lstlisting}
+
+Nenhum atributo é \texttt{public}. Quem está fora da classe só consegue ler pelos getters e só consegue alterar a duração pelo setter, que recusa valores inválidos.
+
+\subsection{Herança e sobrescrita (OO2)}
+
+A classe filha usa \texttt{extends}, chama \texttt{parent::\_\_construct} para passar o nome e o valor base à classe mãe, e sobrescreve os métodos que mudam:
+
+\begin{lstlisting}
+class PlanoTrimestral extends Plano
+{
+    private const DESCONTO = 0.10;
+
+    public function __construct(float $valorBase = 120.0)
+    {
+        parent::__construct('Plano Trimestral', $valorBase);
+    }
+
+    public function getDuracaoMeses(): int { return 3; }
+
+    public function getTaxaMatricula(): float { return 25.0; }
+
+    public function calcularMensalidade(): float
+    {
+        return round($this->getValorBase() * (1 - self::DESCONTO), 2);
+    }
+}
+\end{lstlisting}
+
+\subsection{Polimorfismo (OO3)}
+
+Um único \texttt{foreach} percorre objetos de classes diferentes e chama os mesmos métodos. Cada objeto responde do seu jeito:
+
+\begin{lstlisting}
+$planos = [new PlanoMensal(), new PlanoTrimestral(), new PlanoAnual()];
+foreach ($planos as $plano) {
+    printf("%-10s | mensalidade R$ %7.2f | total R$ %8.2f\n",
+        $plano->getTipo(),
+        $plano->calcularMensalidade(),
+        $plano->calcularTotal()
+    );
+}
+\end{lstlisting}
+
+O \texttt{calcularTotal()} está só na classe mãe, mas chama métodos que as filhas sobrescrevem; por isso a mesma conta dá R\$~170 no mensal, R\$~349 no trimestral e R\$~1.152 no anual:
+
+\begin{lstlisting}
+public function calcularTotal(): float
+{
+    $total = $this->calcularMensalidade() * $this->getDuracaoMeses()
+        + $this->getTaxaMatricula();
+    return round($total, 2);
+}
+\end{lstlisting}
+
+\subsection{Regras de negócio com exceções (OO5)}
+
+As regras lançam \texttt{Exception} e quem chama trata com \texttt{try/catch}. No roteiro de testes, a função abaixo confirma que a regra recusou:
+
+\begin{lstlisting}
+function recusa(string $descricao, callable $acao): void
+{
+    global $falhas;
+    try {
+        $acao();
+        $falhas++;
+        echo "ERRO: {$descricao} foi aceito\n";
+    } catch (Exception $e) {
+        echo "OK, recusado ({$descricao}): {$e->getMessage()}\n";
+    }
+}
+\end{lstlisting}
+
+Se o código dentro do \texttt{try} lança a exceção, o \texttt{catch} mostra a mensagem; se não lança, o teste registra erro. As dez regras da Seção~2.2 são testadas assim.
+
+\subsection{Composição (OO6)}
+
+\texttt{Aluno} guarda um array de \texttt{Treino}, com um método para adicionar (que aplica duas regras) e outro que calcula algo sobre a lista, a soma dos minutos:
+
+\begin{lstlisting}
+public function adicionarTreino(Treino $treino): void
+{
+    if (count($this->treinos) >= self::MAX_TREINOS) {
+        throw new Exception('Limite de ' . self::MAX_TREINOS . ' treinos por semana atingido.');
+    }
+    foreach ($this->treinos as $existente) {
+        if ($existente->getDiaSemana() === $treino->getDiaSemana()) {
+            throw new Exception('O aluno já tem um treino na ' . $treino->getNomeDia() . '.');
+        }
+    }
+    $this->treinos[] = $treino;
+}
+
+public function calcularMinutosSemanais(): int
+{
+    $total = 0;
+    foreach ($this->treinos as $treino) {
+        $total += $treino->getDuracaoMinutos();
+    }
+    return $total;
+}
+\end{lstlisting}
+
+\subsection{Organização em arquivos e conversão para JSON (OO7 e OO8)}
+
+Cada classe fica em um arquivo da pasta \texttt{src/} e é carregada com \texttt{require\_once} no topo do \texttt{index.php}:
+
+\begin{lstlisting}
+src/Plano.php             src/Treino.php
+src/PlanoMensal.php       src/Aluno.php
+src/PlanoTrimestral.php   src/RepositorioAlunos.php
+src/PlanoAnual.php
+
+require_once __DIR__ . '/../src/Plano.php';
+require_once __DIR__ . '/../src/Aluno.php';
+require_once __DIR__ . '/../src/RepositorioAlunos.php';
+\end{lstlisting}
+
+As classes que aparecem no JSON têm o método \texttt{paraArray()}. O do \texttt{Treino} é:
+
+\begin{lstlisting}
+public function paraArray(): array
+{
+    return [
+        'nome' => $this->nome,
+        'dia_semana' => $this->diaSemana,
+        'dia' => $this->getNomeDia(),
+        'duracao_minutos' => $this->duracaoMinutos,
+        'grupo_muscular' => $this->grupoMuscular,
+    ];
+}
+\end{lstlisting}
+
+O \texttt{Aluno::paraArray()} chama o \texttt{paraArray()} do plano e de cada treino, montando a estrutura completa.
+
+%% =====================================================================
+\section{Camada web}
+
+Todo o site está no arquivo \texttt{public/index.php}, com a lógica PHP no topo e o HTML depois (W5). As rotas são escolhidas pela query string (W1):
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+  \toprule
+  \textbf{Rota} & \textbf{O que faz} \\
+  \midrule
+  \texttt{?pagina=inicio} & Resumo: total de alunos e receita prevista \\
+  \texttt{?pagina=alunos} & Lista de alunos \\
+  \texttt{?pagina=aluno\&id=1} & Detalhes do aluno, treinos e formulário de treino \\
+  \texttt{?pagina=novo} & Formulário (POST) para matricular um aluno \\
+  \texttt{?pagina=planos} & Comparação dos três planos \\
+  \texttt{...\&formato=json} & Mesma página em JSON \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+\textbf{404 (W1).} Se a página não está na lista de páginas permitidas, ou se o aluno pedido não existe, a resposta tem status 404:
+
+\begin{lstlisting}
+if (!in_array($pagina, PAGINAS, true)) {
+    $status = 404;
+    $pagina = '404';
+}
+\end{lstlisting}
+
+\textbf{Formulário POST com recusa (W3).} O formulário cria o objeto dentro de um \texttt{try}. Se uma regra recusar, o \texttt{catch} guarda a mensagem da exceção, e ela aparece na página com status 400:
+
+\begin{lstlisting}
+try {
+    $novo = new Aluno($repo->proximaMatricula(), $antigo['nome'], $idade,
+        Plano::criarPorTipo($antigo['plano']));
+    $repo->adicionar($novo);
+    header('Location: index.php?pagina=aluno&id=' . $novo->getMatricula(), true, 303);
+    exit;
+} catch (Exception $e) {
+    $erro = $e->getMessage();
+    $status = 400;
+}
+\end{lstlisting}
+
+\textbf{Rota JSON (W2).} Com \texttt{formato=json}, o sistema envia o cabeçalho correto e imprime o resultado de \texttt{paraArray()} com \texttt{json\_encode}:
+
+\begin{lstlisting}
+header('Content-Type: application/json; charset=utf-8');
+echo json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+exit;
+\end{lstlisting}
+
+\textbf{Segurança (W4).} Todo dado exibido no HTML passa pela função \texttt{h()}, que usa \texttt{htmlspecialchars}:
+
+\begin{lstlisting}
+function h(string|int|float $valor): string
+{
+    return htmlspecialchars((string) $valor, ENT_QUOTES, 'UTF-8');
+}
+\end{lstlisting}
+
+\subsection{Saídas reais do curl}
+
+Aluno existente em JSON, com a resposta abreviada:
+
+\begin{lstlisting}
+curl.exe -i "http://localhost:8000/?pagina=aluno&id=1&formato=json"
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{
+    "matricula": 1,
+    "nome": "Maria Souza",
+    "idade": 28,
+    "plano": {
+        "tipo": "trimestral",
+        "mensalidade": 108,
+        "duracao_meses": 3,
+        "taxa_matricula": 25,
+        "total": 349
+    },
+    "treinos": [ ...2 treinos... ],
+    "qtd_treinos": 2,
+    "minutos_semanais": 105
+}
+\end{lstlisting}
+
+Aluno inexistente, que devolve 404 em JSON:
+
+\begin{lstlisting}
+curl.exe -i "http://localhost:8000/?pagina=aluno&id=99&formato=json"
+
+HTTP/1.1 404 Not Found
+Content-Type: application/json; charset=utf-8
+
+{
+    "erro": "Aluno não encontrado."
+}
+\end{lstlisting}
+
+Formulário com dado recusado (nome com duas letras) e segundo treino no mesmo dia, ambos com status 400 e a mensagem da exceção na página:
+
+\begin{lstlisting}
+HTTP/1.1 400 Bad Request
+<p class="erro">O nome do aluno deve ter pelo menos 3 caracteres.</p>
+
+HTTP/1.1 400 Bad Request
+<p class="erro">O aluno já tem um treino na Segunda.</p>
+\end{lstlisting}
+
+%% =====================================================================
+\section{Testes}
+
+O arquivo \texttt{teste.php} roda no terminal (\texttt{php teste.php}) e mostra, em sequência, cada regra aceita e cada recusa. A saída abaixo é a real, só com a seção 6 abreviada, porque o JSON do aluno já aparece na seção anterior.
+
+\lstinputlisting{saida_teste.txt}
+
+O que cada seção comprova:
+
+\begin{enumerate}
+  \item \textbf{Polimorfismo:} o mesmo \texttt{foreach} chama os mesmos métodos e cada plano responde com seus valores (R\$~170, R\$~349 e R\$~1.152 de total).
+  \item \textbf{Regras do plano:} valor base zero e tipo inexistente são recusados; o tipo \texttt{ANUAL} em maiúsculas é aceito.
+  \item \textbf{Regras do aluno:} nome curto e idades fora de 16 a 100 anos são recusados.
+  \item \textbf{Regras do treino:} duração fora de 10 a 180 minutos, dia inválido e grupo muscular vazio são recusados.
+  \item \textbf{Composição:} a soma de 60 + 45 + 50 = 155 minutos comprova o cálculo sobre a lista; o segundo treino no mesmo dia e o sétimo treino são recusados.
+  \item \textbf{JSON:} mostra a estrutura que a rota \texttt{?formato=json} devolve (abreviada neste relatório).
+  \item \textbf{Persistência:} o aluno é gravado, lido de novo por um repositório novo (como numa próxima requisição) e volta com os mesmos dados; o nome duplicado é recusado.
+\end{enumerate}
+
+%% =====================================================================
+\section{Ferramentas utilizadas}
+
+\begin{center}
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+  \toprule
+  \textbf{Ferramenta} & \textbf{Para que foi usada} \\
+  \midrule
+  PHP 8 & Linguagem do sistema e servidor embutido (\texttt{php -S}) para rodar o site e o \texttt{teste.php}. \\
+  VS Code & Editor onde o código foi lido, testado e ajustado. \\
+  Git e GitHub & Controle de versão: issues, branches, pull requests, commits e tags dos marcos. \\
+  curl & Testar as rotas, os status HTTP e o JSON pelo terminal. \\
+  Navegador e DevTools & Testar as páginas, os formulários e conferir os cabeçalhos das respostas. \\
+  LLM: Claude & Gerou a primeira versão do código, explicou conceitos e mensagens de erro, ajudou com o diagrama, o visual do site e a ordem dos commits. \\
+  Gravador de tela: \pendente{OBS Studio} & Gravação do vídeo de apresentação. \\
+  \bottomrule
+\end{tabularx}
+\end{center}
+
+%% =====================================================================
+\section{Uso de LLM}
+
+Usei o Claude em uma conversa única, entre 02/11 e 04/11/2026. O diário completo está em \texttt{docs/llm.md}. Em resumo:
+
+\begin{itemize}
+  \item \textbf{Geração inicial:} enviei o enunciado para o Claude e pedi para ele me explicar cada etapa para que eu possa entender melhor a proposta de projeto.
+  \item \textbf{Organização:} então comecei o desenvolvimento do projeto e pedi também em quais partes eu devo commitar para deixar o projeto organizado
+  \item \textbf{Erros ao rodar no meu computador:} mostrei prints e mensagens do terminal, e o Claude apontou que o \texttt{teste.php} estava fora da pasta do projeto, que o arquivo \texttt{RepositorioAlunos.php} estava com o nome errado e que o \texttt{Modelagem.md} estava com letra maiúscula, o que quebrava o link do README. Corrigi os três.
+  \item \textbf{Visual:} Na parte da estilização eu pedi para ele criar um css para deixar o projeto bonito.
+  \item \textbf{Estudo para a apresentação:} pedi explicações do código (getters, repositório, bloco de lógica do \texttt{index.php}) e fiz perguntas de arguição.
+\end{itemize}
+
+\textbf{Erros e sugestões ruins.} Na primeira versão, o \texttt{index.php} respondia com status HTTP 422 para dados inválidos, e o servidor embutido do PHP mostra ``Unknown Status Code'' para esse código; o Claude trocou para 400 antes de me entregar os arquivos. \pendente{Eu rejeitei o arquivo por que ficou uma estilização feia, não tinha nada haver com um sistema de academia e uma cor muito chamativa que chegou a doer a vista. alterei para cores mais suaves e mais minimalistas que combinasem com o tema do projeto.
+}
+
+\textbf{Reflexão.} A LLM ajudou a aprender quando explicou conceitos que eu não dominava (encapsulamento, sobrescrita, polimorfismo, \texttt{try/catch}, a persistência em JSON) e quando traduziu mensagens de erro em passos para corrigir. Ela poderia ter atrapalhado se eu tivesse copiado o código sem entendê-lo: como o enunciado diz, o código que não consigo explicar não é meu. Por isso li as classes uma a uma e treinei a explicação em voz alta.
+
+%% =====================================================================
+\section{Dificuldades, aprendizados e conclusão}
+
+\textbf{Dificuldades.} \pendente{Fazer os construtores e entender a diferença entre herança e composição.}
+
+\textbf{Aprendizados.} Aprendi como a herança e a sobrescrita evitam repetir código, como o polimorfismo permite tratar objetos diferentes da mesma forma e como as exceções deixam as regras de negócio claras e testáveis. Na camada web, aprendi a escolher a página pela query string, a devolver o status HTTP correto, a gerar JSON e a escapar o que é mostrado no HTML. O bônus mostrou como guardar objetos em arquivo com \texttt{json\_encode} e \texttt{json\_decode}.
+
+\textbf{O que faria diferente.} Usaria um banco de dados no lugar do arquivo JSON, separaria o HTML em arquivos próprios para o \texttt{index.php} ficar menor, e acrescentaria o controle de pagamentos das mensalidades.
+
+\textbf{Conclusão.} O sistema cumpre os requisitos de orientação a objetos (OO1 a OO8) e da camada web (W1 a W5), além do bônus de persistência, e as regras de negócio são verificadas pelo roteiro de testes.
+
+\section*{Links}
+\begin{itemize}
+  \item Repositório: \url{https://github.com/LucasFerreira069/pweb1-trabalho-oo}
+  \item Vídeo: \url{https://youtu.be/6azZOgVSUsQ}
+\end{itemize}
+
+\end{document}

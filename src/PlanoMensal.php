@@ -3,9 +3,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Plano.php';
 
-/**
- * Plano mensal: sem desconto, 1 mês, taxa de matrícula cheia.
- */
 class PlanoMensal extends Plano
 {
     public function __construct(float $valorBase = 120.0)

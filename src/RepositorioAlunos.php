@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Aluno.php';
 
-/**
- * Guarda os alunos em um arquivo JSON (bônus de persistência).
- */
+
 class RepositorioAlunos
 {
     private string $arquivo;

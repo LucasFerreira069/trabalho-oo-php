@@ -3,10 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Plano.php';
 
-/**
- * Plano trimestral: 10% de desconto na mensalidade, 3 meses,
- * taxa de matrícula pela metade.
- */
+
 class PlanoTrimestral extends Plano
 {
     private const DESCONTO = 0.10;

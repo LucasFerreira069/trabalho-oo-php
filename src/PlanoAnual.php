@@ -3,10 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/Plano.php';
 
-/**
- * Plano anual: 20% de desconto na mensalidade, 12 meses,
- * matrícula isenta.
- */
+
 class PlanoAnual extends Plano
 {
     private const DESCONTO = 0.20;

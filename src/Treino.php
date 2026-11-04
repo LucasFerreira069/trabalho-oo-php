@@ -1,9 +1,7 @@
 <?php
 declare(strict_types=1);
 
-/**
- * Um treino da semana de um aluno (ex.: "Treino A - Peito", na segunda, 60 min).
- */
+
 class Treino
 {
     private const DIAS = [

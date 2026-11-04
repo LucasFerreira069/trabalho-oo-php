@@ -1,11 +1,6 @@
 <?php
 declare(strict_types=1);
 
-/**
- * Classe mãe da hierarquia de planos da academia.
- * As filhas (PlanoMensal, PlanoTrimestral, PlanoAnual) sobrescrevem
- * o cálculo da mensalidade, a duração, a taxa de matrícula e a descrição.
- */
 class Plano
 {
     private string $nome;

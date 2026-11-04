@@ -4,9 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/Plano.php';
 require_once __DIR__ . '/Treino.php';
 
-/**
- * Aluno da academia. Tem um Plano e uma lista de Treino (composição).
- */
 class Aluno
 {
     private const MAX_TREINOS = 6;
@@ -64,9 +61,6 @@ class Aluno
         return $this->treinos;
     }
 
-    /**
-     * Composição: o aluno guarda uma lista de treinos.
-     */
     public function adicionarTreino(Treino $treino): void
     {
         if (count($this->treinos) >= self::MAX_TREINOS) {
@@ -83,10 +77,7 @@ class Aluno
         }
         $this->treinos[] = $treino;
     }
-
-    /**
-     * Cálculo sobre a lista: total de minutos de treino na semana.
-     */
+    
     public function calcularMinutosSemanais(): int
     {
         $total = 0;

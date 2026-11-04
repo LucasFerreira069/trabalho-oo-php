@@ -1,10 +1,6 @@
 <?php
 declare(strict_types=1);
 
-// ===================================================================
-// LÓGICA PHP (tudo aqui em cima; o HTML vem depois)
-// ===================================================================
-
 require_once __DIR__ . '/../src/Plano.php';
 require_once __DIR__ . '/../src/PlanoMensal.php';
 require_once __DIR__ . '/../src/PlanoTrimestral.php';
@@ -15,13 +11,11 @@ require_once __DIR__ . '/../src/RepositorioAlunos.php';
 
 const PAGINAS = ['inicio', 'alunos', 'aluno', 'novo', 'planos'];
 
-/** Escapa qualquer dado exibido no HTML (W4). */
 function h(string|int|float $valor): string
 {
     return htmlspecialchars((string) $valor, ENT_QUOTES, 'UTF-8');
 }
 
-/** Lê um campo de texto do POST de forma segura. */
 function campoPost(string $campo): string
 {
     $valor = $_POST[$campo] ?? '';
@@ -164,21 +158,18 @@ if ($formato === 'json') {
 
 http_response_code($status);
 
-// ===================================================================
-// HTML
-// ===================================================================
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Academia Força Total</title>
+    <title>Academia Iron Force</title>
     <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
 <header class="topo">
-    <h1>Academia Força Total</h1>
+    <h1>Academia Iron Force</h1>
     <nav>
         <a href="?pagina=inicio">Início</a>
         <a href="?pagina=alunos">Alunos</a>
